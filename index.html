@@ -1083,6 +1083,29 @@ async function genererPDFGlobal() {
       }
     });
 
+    // IMPORTANT : cloneNode ne copie pas non plus l'option choisie dans les
+    // menus déroulants (le clone retombe sur « -- Sélectionner -- »).
+    // Je remplace donc chaque <select> du clone par un cadre affichant
+    // le choix réel de l'utilisateur.
+    const selectsOriginaux = element.querySelectorAll('select');
+    const selectsClones = clone.querySelectorAll('select');
+    selectsClones.forEach((sc, i) => {
+      const so = selectsOriginaux[i];
+      if (!so) return;
+      const opt = so.options[so.selectedIndex];
+      const div = document.createElement('div');
+      div.textContent = opt ? opt.textContent : '';
+      div.style.padding = '6px 8px';
+      div.style.minHeight = '20px';
+      div.style.border = '1px solid #9fb7cc';
+      div.style.borderRadius = '6px';
+      div.style.background = so.disabled ? '#eee' : '#fff';
+      div.style.font = window.getComputedStyle(so).font || '14px sans-serif';
+      div.style.boxSizing = 'border-box';
+      if (sc.style.width) div.style.width = sc.style.width;
+      sc.parentNode.replaceChild(div, sc);
+    });
+
     // je supprime le panneau admin si présent
     const adminInClone = clone.querySelector('#adminPanel');
     if (adminInClone) adminInClone.remove();
