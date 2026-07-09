@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Décharge du Matériel – CDÉNÉ</title>
+
+<!-- libs -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+  /* Je définis le style général et les styles des blocs. */
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f7f9fa; color: #222; padding: 25px; }
+  #enTetePDF { text-align:center; margin-bottom:20px; }
+  #enTetePDF img { width:120px; height:auto; display:block; margin:0 auto 10px; }
+  h1 { color:#003a70; margin:0; }
+  .instructions { max-width:900px; margin:0 auto 20px auto; background:#e9f2f1; border-bottom:6px solid #1e4f38; padding:12px 18px; border-radius:6px; line-height:1.5; }
+  .bloc-formulaire { background-color: #c9d9e8; border: 1px solid #6885a5; border-radius: 12px; padding: 20px; margin-bottom: 30px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); page-break-inside: avoid; max-width: 900px; margin-left:auto; margin-right:auto; }
+  fieldset { border:2px solid #1e4f38; border-radius:8px; padding:16px; }
+  legend { font-weight:700; color:#003a70; font-size:1.05em; }
+  label { display:block; margin-top:10px; font-weight:700; }
+  input, select, textarea { width:100%; padding:8px; margin-top:6px; border-radius:6px; border:1px solid #888; box-sizing:border-box; font-size:14px; }
+  textarea, .bloc-texte { overflow: visible !important; height:auto !important; min-height:80px; white-space: pre-wrap; word-wrap: break-word; }
+  .two-col { display:flex; gap:12px; }
+  .two-col > div { flex:1; }
+  button { background: #003366; color:#fff; padding:10px 18px; border:none; border-radius:8px; cursor:pointer; font-weight:700; }
+  button:hover { background:#0055aa; }
+  .center { text-align:center; margin:20px 0; }
+  #adminPanel { display:none; max-width:900px; margin:0 auto 20px auto; padding:12px; border:1px solid #ddd; background:#fafafa; border-radius:8px; }
+  .admin-toggle { color:#003366; cursor:pointer; text-decoration:underline; margin-bottom:8px; display:inline-block; }
+
+  /* Classe spéciale pour marquer les éléments que je supprime avant de capturer le PDF.
+     Je garde display:block pour ne rien modifier visuellement. */
+  .no-pdf { display: block; }
+
+  /* Empêche les champs de rétrécir quand on écrit */
+  input[type="text"], input[type="date"], input[type="number"], textarea {
+      width: 100%;
+      min-height: 34px;
+      padding: 6px 8px;
+      box-sizing: border-box;
+      line-height: 1.4;
+      display: block;
+      border: 1px solid #9fb7cc;
+      border-radius: 6px;
+      background: white;
+  }
+
+  /* Correction spéciale pour les cellules des tableaux du matériel */
+  .material-table-block table input {
+      width: 100%;
+      min-height: 32px;
+  }
+
+  /* Correction des textarea trop petites */
+  textarea {
+      min-height: 80px;
+      resize: vertical;
+  }
+
+  /* Styles pour les contrôles dans les blocs dynamiques */
+  .material-table-block .controls { display:flex; gap:8px; align-items:center; }
+  .material-table-block .controls button { padding:6px 10px; font-size:13px; }
+  .action-block { border:1px dashed #9fb7cc; padding:12px; border-radius:8px; margin-bottom:12px; background:#fff; }
+  .sub-block { background:#f4fbff; padding:10px; border-radius:6px; margin-top:10px; }
+  .sub-block[data-role="retour"] { background:#fdf3e4; border:1px solid #e3c99e; }
+  .sub-block[data-role="retour"] > strong { color:#9a6a00; }
+  .sub-block[data-role="nouveau"] { background:#ecf7ec; border:1px solid #bcd9bc; }
+  .sub-block[data-role="nouveau"] > strong { color:#1e5c1e; }
+  .action-header { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  .action-header .actions-left { display:flex; gap:10px; align-items:center; flex:1; }
+  .small { font-size:13px; padding:6px 8px; border-radius:6px; }
+
+  /* Cadres de signature manuscrite (employé / gestionnaire) */
+  .signature-pad {
+    width:100%;
+    height:160px;
+    background:#fff;
+    border:1px dashed #6885a5;
+    border-radius:6px;
+    margin-top:6px;
+    display:block;
+    touch-action:none;   /* permet de signer au doigt sans faire défiler la page */
+    cursor:crosshair;
+  }
+  .sig-hint { font-size:13px; color:#444; margin:4px 0 0 0; }
+
+  /* Responsive */
+  @media (max-width:700px) {
+    .two-col { flex-direction:column; }
+    .action-header { flex-direction:column; align-items:flex-start; gap:8px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================
+     HEADER
+     ============================ -->
+<div id="enTetePDF">
+  <!-- Je place le logo et le titre en haut -->
+  <img src="https://www.cdene.ns.ca/sites/default/files/inline-images/logo_cdene.png" alt="Logo CDÉNÉ" />
+  <h1>Décharge du Matériel – CDÉNÉ</h1>
+</div>
+
+<p id="instructionsPDF" class="instructions">
+  <!-- Je décris brièvement l'objet du formulaire -->
+  Ce formulaire est utilisé pour documenter <strong>l’attribution, le suivi et la restitution</strong> des biens du CDÉNÉ dans le cadre du cycle d’emploi d’un collaborateur. Il doit être complété par le gestionnaire direct ou son représentant. Une fois rempli, il doit être archivé et transmis aux ressources humaines.
+</p>
+
+<!-- admin panel toggle -->
+<div class="center">
+  <!-- Ce panneau est visible à l'écran mais il sera retiré du clone pour le PDF -->
+  <span class="admin-toggle" onclick="toggleAdminPanel()">⚙️ Panneau admin</span>
+</div>
+
+<div id="adminPanel">
+  <h3>Panneau administrateur</h3>
+  <label><input type="checkbox" id="chkAttribution" onclick="toggleBloc('blocAttribution')"> Afficher-Bloc Attribution</label>
+  <label><input type="checkbox" id="chkSuivi" checked onclick="toggleBloc('blocSuivi')"> Afficher-Bloc Suivi</label>
+  <label><input type="checkbox" id="chkDecharge" onclick="toggleBloc('blocDécharge')"> Afficher-Bloc Restitution</label>
+</div>
+
+
+
+
+
+<!-- ============================
+     FORMULAIRES*************************
+     **********************************
+     **********************************
+     ============================ -->
+
+    
+<div id="formMateriel">
+
+  <!-- ============================
+       BLOC 1 : Attribution (inchangé fonctionnellement)
+       Je réintègre la version fonctionnelle connue
+       ============================ -->
+  <!-- ============================
+     BLOC 1 : Attribution 
+     ============================ -->
+
+<form id="blocAttribution" class="bloc-formulaire" style="display:none;">
+  <fieldset>
+    <legend>Attribution du matériel</legend>
+
+    <!-- Informations générales -->
+    <div class="two-col">
+      <div>
+        <label>Nom de l’employé</label>
+        <input type="text" id="nomAttribution" />
+      </div>
+      <div>
+        <label>Nom du Gestionnaire</label>
+        <input type="text" id="gestionnaireAttribution" />
+      </div>
+    </div>
+
+    <!-- Contrôles: bouton Pour entrer matériel......************ -->
+    <div style="margin-top:12px; display:flex; gap:8px; align-items:center;">
+      <button type="button" id="btnAddAttributionRow" class="no-pdf">➕ Entrer un matériel</button>
+    </div>
+
+    <!-- Tableau unique pour regouper toutes les entrers en section compact -->
+    <div style="margin-top:12px; overflow-x:auto;">
+      <table id="attributionTable" style="width:100%; border-collapse:collapse;">
+        <thead>
+          <tr style="background:#dce6f1;">
+            <th>Type</th>
+            <th>Marque</th>
+            <th>Nom(pour ordi dans system)</th>
+            <th>N° de série</th>
+            <th>Quantité</th>
+          </tr>
+        </thead>
+        <tbody id="attributionTbody"></tbody>
+      </table>
+    </div>
+
+    <!-- Signatures -->
+    <label style="margin-top:20px;">Déclaration de l’employé</label>
+    <textarea readonly class="bloc-texte">
+L'employé reconnaît avoir reçu le matériel listé ci-dessus, incluant sans s'y limiter le matériel informatique, les clés, badges, équipements divers et documents physiques ou électroniques indiqués dans ce formulaire, et s'engage à en faire un usage professionnel et à en prendre soin.
+    </textarea>
+
+    <label>Réserves éventuelles</label>
+    <textarea readonly class="bloc-texte">
+L'employeur se réserve le droit de réclamer une compensation si un matériel est perdu ou endommagé.
+    </textarea>
+
+    <label>Date de signature</label>
+    <input type="date" id="dateRestitution1" />
+
+    <div class="two-col">
+      <div>
+        <label>Signature du gestionnaire</label>
+        <input type="text" id="signatureEmployeur1" placeholder="Nom / signature" />
+      </div>
+      <div>
+        <label>Signature de l’employé</label>
+        <input type="text" id="signatureEmploye1" placeholder="Nom / signature" />
+      </div>
+    </div>
+
+  </fieldset>
+</form>
+
+<!-- ========= SCRIPT gestion DU TABLEAU ========== -->
+<script>
+/* Types disponibles + colonnes à afficher */
+const attributionTypes = {
+  'Cles': { label:'Clés du bureau', show:{marque:false, nom:false, serie:false, quantite:true} },
+  'Badge': { label:'Badge d’accès', show:{marque:false, nom:false, serie:false, quantite:true} },
+  'LigneTel': { label:'Téléphone Cellulaire', show:{marque:true, nom:false, serie:true, quantite:false} },
+  'Laptop': { label:'Ordinateur / Laptop', show:{marque:true, nom:true, serie:true, quantite:false} },
+  'Moniteur': { label:'Moniteur', show:{marque:true, nom:false, serie:true, quantite:false} },
+  'Tablette': { label:'Tablette', show:{marque:true, nom:false, serie:true, quantite:false} },
+  'Accessoire': { label:'Accessoires', show:{marque:true, nom:true, serie:true, quantite:false} },
+  'Autres': { label:'Autres', show:{marque:true, nom:true, serie:true, quantite:false} }
+};
+
+let attrID = 0;
+
+/* Gestion des Ajout d ligne supp pour plusieur types.... */
+function addAttributionRow() {
+  attrID++;
+  const tbody = document.getElementById("attributionTbody");
+
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td>
+      <select class="typeSelect" onchange="updateAttrRow(this)">
+        <option value="">--</option>
+        ${Object.entries(attributionTypes).map(([k,v]) =>
+          `<option value="${k}">${v.label}</option>`
+        ).join('')}
+      </select>
+    </td>
+
+    <td><input type="text" class="marque"></td>
+    <td><input type="text" class="nom"></td>
+    <td><input type="text" class="serie"></td>
+    <td><input type="number" class="quantite" min="1"></td>
+
+    <td>
+      <button type="button" class="no-pdf" onclick="this.closest('tr').remove()">❌</button>
+    </td>
+  `;
+
+  tbody.appendChild(tr);
+}
+
+/* kind of  Adapter les champs selon le type */
+function updateAttrRow(select) {
+  const tr = select.closest("tr");
+  const marque = tr.querySelector(".marque");
+  const nom = tr.querySelector(".nom");
+  const serie = tr.querySelector(".serie");
+  const quantite = tr.querySelector(".quantite");
+
+  const type = attributionTypes[select.value];
+
+  if (!type) {
+    marque.disabled = nom.disabled = serie.disabled = quantite.disabled = true;
+    return;
+  }
+
+  marque.disabled = !type.show.marque;
+  nom.disabled = !type.show.nom;
+  serie.disabled = !type.show.serie;
+  quantite.disabled = !type.show.quantite;
+
+  if (!type.show.marque) marque.value = "";
+  if (!type.show.nom) nom.value = "";
+  if (!type.show.serie) serie.value = "";
+  if (!type.show.quantite) quantite.value = "";
+}
+
+/* gestion pour Regrouper lignes par type pour permettre l'orginisation visul */
+function groupAttributionRowsByType() {
+  const tbody = document.getElementById("attributionTbody");
+  const rows = Array.from(tbody.querySelectorAll("tr"));
+
+  const groups = {};
+
+  rows.forEach(r => {
+    const t = r.querySelector(".typeSelect").value || "Autres";
+    groups[t] = groups[t] || [];
+    groups[t].push(r);
+  });
+
+  tbody.innerHTML = "";
+
+  for (const key of Object.keys(attributionTypes)) {
+    if (!groups[key]) continue;
+
+    const title = document.createElement("tr");
+    title.innerHTML = `<td colspan="8" style="background:#eef6fb; font-weight:bold;">${attributionTypes[key].label}</td>`;
+    tbody.appendChild(title);
+
+    groups[key].forEach(r => tbody.appendChild(r));
+  }
+}
+
+document.getElementById("btnAddAttributionRow").onclick = addAttributionRow;
+const btnGroupByType = document.getElementById("btnGroupByType");
+if (btnGroupByType) btnGroupByType.onclick = groupAttributionRowsByType;
+</script>
+
+
+
+
+
+
+
+  <!-- ============================
+       BLOC 2 : SUIVI / MISE À JOUR (NOUVEAU & DYNAMIQUE)
+       ============================ -->
+  <form id="blocSuivi" class="bloc-formulaire">
+    <fieldset>
+      <legend>Suivi / Mise à jour</legend>
+
+      <div class="two-col">
+        <div><label>Nom de l’employé</label><input type="text" id="nomSuivi" /></div>
+        <div><label>Nom du gestionnaire</label><input type="text" id="gestionnaireSuivi" /></div>
+      </div>
+
+      <!-- Conteneur pour toutes les actions -->
+      <div id="actionsSuiviContainer" style="margin-top:16px;"></div>
+
+      <!-- Bouton pour ajouter une nouvelle action -->
+      <div style="margin-top:12px;">
+        <button type="button" id="btnAddAction" class="no-pdf">➕ Ajouter une action de suivi</button>
+      </div>
+
+    </fieldset>
+  </form>
+
+  <!-- Script complet et commenté pour le Bloc 2 -->
+  <script>
+  /*
+    Je construis ici le Bloc 2 (Suivi) dynamique.
+    - Chaque "action" est un bloc réutilisable.
+    - L'utilisateur peut ajouter autant d'actions qu'il veut.
+    - Chaque action a un seul menu déroulant (Ajout / Changement / Retour / Autres).
+    - Pour "Changement", j'affiche 2 sous-blocs séparés : Matériel retourné & Matériel reçu.
+    - Je marque les boutons interactifs avec .no-pdf pour les exclure du PDF.
+  */
+
+  // Types de matériel : valeur interne + libellé lisible affiché à l'utilisateur
+  const typesMaterielOptions = [
+    { value:'',           label:'-- Sélectionner le type --' },
+    { value:'Cles',       label:'Clés du bureau' },
+    { value:'Badge',      label:'Badge d’accès' },
+    { value:'LigneTel',   label:'Téléphone cellulaire' },
+    { value:'Laptop',     label:'Ordinateur / Laptop' },
+    { value:'Moniteur',   label:'Moniteur' },
+    { value:'Tablette',   label:'Tablette' },
+    { value:'Accessoire', label:'Accessoires' },
+    { value:'Autres',     label:'Autres' }
+  ];
+
+  // Champs actifs selon le type de matériel choisi
+  const champsParType = {
+    'Cles':       { marque:false, nom:false, serie:false, quantite:true },
+    'Badge':      { marque:false, nom:false, serie:false, quantite:true },
+    'LigneTel':   { marque:true,  nom:false, serie:true,  quantite:false },
+    'Laptop':     { marque:true,  nom:true,  serie:true,  quantite:false },
+    'Moniteur':   { marque:true,  nom:false, serie:true,  quantite:false },
+    'Tablette':   { marque:true,  nom:false, serie:true,  quantite:false },
+    'Accessoire': { marque:true,  nom:true,  serie:true,  quantite:true },
+    'Autres':     { marque:true,  nom:true,  serie:true,  quantite:true }
+  };
+
+  // Configuration des champs pour un matériel (réutilisable)
+  const materielFields = [
+    { key: 'type',     label: 'Type de matériel', type: 'select', options: typesMaterielOptions },
+    { key: 'marque',   label: 'Marque', type: 'text' },
+    { key: 'nom',      label: "Nom de l'ordinateur (si applicable)", type: 'text' },
+    { key: 'serie',    label: 'N° de série', type: 'text' },
+    { key: 'quantite', label: 'Quantité', type: 'number' },
+    { key: 'etat',     label: 'État', type: 'select', options: [
+        { value:'',        label:'-- Sélectionner --' },
+        { value:'Bon',     label:'Bon' },
+        { value:'Moyen',   label:'Moyen' },
+        { value:'Mauvais', label:'Mauvais' }
+      ] },
+    { key: 'comment',  label: 'Commentaire', type: 'textarea' }
+  ];
+
+  // Je garde un compteur simple pour donner des IDs uniques à chaque action
+  let actionCounter = 0;
+
+  // Référence au conteneur et au bouton
+  const actionsContainer = document.getElementById('actionsSuiviContainer');
+  const btnAddAction = document.getElementById('btnAddAction');
+
+  // Quand j'appuie sur "Ajouter une action", je crée un nouveau bloc d'action
+  btnAddAction.addEventListener('click', () => {
+    const actionId = ++actionCounter;
+    const actionBlock = createActionBlock(actionId);
+    actionsContainer.appendChild(actionBlock);
+    // focus sur le premier champ utile dans le bloc
+    const firstInput = actionBlock.querySelector('select, input, textarea');
+    if (firstInput) firstInput.focus();
+  });
+
+  // Fonction qui crée un bloc d'action entier
+  function createActionBlock(id) {
+    // Conteneur principal de l'action
+    const block = document.createElement('div');
+    block.className = 'action-block';
+    block.dataset.actionId = id;
+
+    // Header : menu déroulant + boutons supprimer/dupliquer
+    const header = document.createElement('div');
+    header.className = 'action-header';
+
+    const left = document.createElement('div');
+    left.className = 'actions-left';
+
+    // Menu déroulant unique pour choisir l'action
+    const select = document.createElement('select');
+    select.className = 'small';
+    select.name = `action[${id}][type]`;
+    select.innerHTML = `
+      <option value="">-- Sélectionner l'action --</option>
+      <option value="Ajout">Ajout du matériel</option>
+      <option value="Changement">Changement du matériel</option>
+      <option value="Retour">Retour du matériel</option>
+      <option value="Autre">Autre action</option>
+    `;
+    left.appendChild(select);
+
+    // Date et état globaux pour l'action (facultatif)
+    const dateInput = document.createElement('input');
+    dateInput.type = 'date';
+    dateInput.name = `action[${id}][date]`;
+    dateInput.className = 'small';
+    dateInput.style.width = '150px';
+    dateInput.title = 'Date de l\'action';
+    left.appendChild(dateInput);
+
+    // Ajout au header
+    header.appendChild(left);
+
+    // Boutons : dupliquer (optionnel), supprimer
+    const btns = document.createElement('div');
+    btns.style.display = 'flex';
+    btns.style.gap = '8px';
+    btns.style.alignItems = 'center';
+
+    const btnDup = document.createElement('button');
+    btnDup.type = 'button';
+    btnDup.className = 'no-pdf small';
+    btnDup.textContent = 'Dupliquer';
+    btnDup.title = 'Dupliquer cette action';
+    btnDup.onclick = () => duplicateAction(block);
+    btns.appendChild(btnDup);
+
+    const btnRemove = document.createElement('button');
+    btnRemove.type = 'button';
+    btnRemove.className = 'no-pdf small';
+    btnRemove.textContent = 'Supprimer';
+    btnRemove.onclick = () => block.remove();
+    btns.appendChild(btnRemove);
+
+    header.appendChild(btns);
+
+    // Zone de contenu qui changera selon la sélection
+    const content = document.createElement('div');
+    content.className = 'action-content';
+
+    // Info textuelle / description (pour "Autre")
+    const otherDesc = document.createElement('textarea');
+    otherDesc.name = `action[${id}][otherDesc]`;
+    otherDesc.placeholder = 'Description (si Autre)';
+    otherDesc.style.display = 'none';
+
+    // Je crée des sous-blocs réutilisables (retour et nouveau) mais je ne les attache pas tout de suite
+    const retourBlock = createMaterielSubBlock(id, 'retour'); // matériel retourné (pour Changement ou Retour)
+    const nouveauBlock = createMaterielSubBlock(id, 'nouveau'); // matériel reçu (pour Changement ou Ajout)
+
+    // Je construis le DOM
+    block.appendChild(header);
+    block.appendChild(content);
+    content.appendChild(otherDesc);
+
+    // Quand l'utilisateur change le type d'action, je remplace le contenu
+    select.addEventListener('change', (e) => {
+      const val = e.target.value;
+      // je nettoie le zone content (sauf textarea otherDesc que je garde)
+      // Retirer les sub-blocks déjà attachés (si présents)
+      [retourBlock, nouveauBlock].forEach(sb => {
+        if (sb.parentNode === content) content.removeChild(sb);
+      });
+      // cacher otherDesc par défaut
+      otherDesc.style.display = 'none';
+
+      if (val === 'Ajout') {
+        // Pour Ajout : on montre le bloc "nouveau"
+        content.appendChild(nouveauBlock);
+      } else if (val === 'Changement') {
+        // Pour Changement : on montre d'abord "retour" puis "nouveau"
+        content.appendChild(retourBlock);
+        content.appendChild(nouveauBlock);
+      } else if (val === 'Retour') {
+        // Pour Retour matériel : on montre uniquement "retour"
+        content.appendChild(retourBlock);
+      } else if (val === 'Autre') {
+        // Si Autre : on montre le textarea libre
+        otherDesc.style.display = 'block';
+      } else {
+        // Rien sélectionné : on garde la zone vide
+      }
+    });
+
+    // Je fournis un petit panneau pour déplacer (up/down) si besoin (facultatif)
+    const moveControls = document.createElement('div');
+    moveControls.style.marginTop = '8px';
+    moveControls.className = 'no-pdf';
+    const upBtn = document.createElement('button');
+    upBtn.type = 'button';
+    upBtn.textContent = '↑';
+    upBtn.title = 'Déplacer vers le haut';
+    upBtn.className = 'small';
+    upBtn.onclick = () => {
+      const prev = block.previousElementSibling;
+      if (prev) block.parentNode.insertBefore(block, prev);
+    };
+    const downBtn = document.createElement('button');
+    downBtn.type = 'button';
+    downBtn.textContent = '↓';
+    downBtn.title = 'Déplacer vers le bas';
+    downBtn.className = 'small';
+    downBtn.onclick = () => {
+      const next = block.nextElementSibling;
+      if (next) block.parentNode.insertBefore(next, block);
+    };
+    moveControls.appendChild(upBtn);
+    moveControls.appendChild(downBtn);
+    block.appendChild(moveControls);
+
+    return block;
+  }
+
+  // Fonction qui duplique une action.
+  // NB : l'ancienne version utilisait cloneNode, mais le clone perdait les
+  // valeurs saisies ET ses menus ne réagissaient plus (les écouteurs
+  // d'événements ne sont pas clonés). Je recrée donc un bloc neuf et je
+  // copie les valeurs champ par champ.
+  function duplicateAction(block) {
+    const newId = ++actionCounter;
+    const nouveau = createActionBlock(newId);
+    block.parentNode.insertBefore(nouveau, block.nextSibling);
+
+    // 1) je reprends le type d'action et je déclenche l'affichage des mêmes sous-blocs
+    const ancienSelectAction = block.querySelector('select');
+    const nouveauSelectAction = nouveau.querySelector('select');
+    nouveauSelectAction.value = ancienSelectAction.value;
+    nouveauSelectAction.dispatchEvent(new Event('change'));
+
+    // 2) je copie toutes les valeurs champ par champ (les deux blocs ont
+    //    maintenant exactement la même structure, dans le même ordre)
+    const anciensChamps = block.querySelectorAll('input, select, textarea');
+    const nouveauxChamps = nouveau.querySelectorAll('input, select, textarea');
+    anciensChamps.forEach((el, i) => {
+      const nf = nouveauxChamps[i];
+      if (!nf) return;
+      nf.value = el.value;
+      nf.disabled = el.disabled;
+      if (el.style.display) nf.style.display = el.style.display;
+    });
+  }
+
+  // Création d'un sous-block pour saisir les infos d'un matériel (réutilisable)
+  function createMaterielSubBlock(actionId, role) {
+    // role : 'retour' ou 'nouveau'
+    const container = document.createElement('div');
+    container.className = 'sub-block';
+    container.dataset.role = role;
+
+    const title = document.createElement('strong');
+    title.textContent = (role === 'retour') ? 'Matériel retourné' : (role === 'nouveau') ? 'Matériel reçu' : 'Matériel';
+    container.appendChild(title);
+
+    const refs = {}; // références aux champs, pour les activer/désactiver selon le type
+
+    // Je crée les champs définis dans materielFields
+    materielFields.forEach(field => {
+      const fieldWrapper = document.createElement('div');
+      fieldWrapper.style.marginTop = '8px';
+      const label = document.createElement('label');
+      label.textContent = field.label;
+      fieldWrapper.appendChild(label);
+
+      let input;
+      if (field.type === 'select') {
+        input = document.createElement('select');
+        field.options.forEach(opt => {
+          const o = document.createElement('option');
+          o.value = opt.value;
+          o.textContent = opt.label;
+          input.appendChild(o);
+        });
+      } else if (field.type === 'textarea') {
+        input = document.createElement('textarea');
+      } else {
+        input = document.createElement('input');
+        input.type = field.type; // 'text' ou 'number'
+        if (field.type === 'number') input.min = '1';
+      }
+      input.name = `action[${actionId}][${role}][${field.key}]`;
+      refs[field.key] = input;
+
+      fieldWrapper.appendChild(input);
+      container.appendChild(fieldWrapper);
+    });
+
+    // J'active/désactive les champs selon le type de matériel choisi
+    // (comme dans la version publiée de l'ancien formulaire : tout est grisé
+    //  tant qu'aucun type n'est sélectionné)
+    function majChampsMateriel(typeVal) {
+      const cfg = champsParType[typeVal];
+      const simples = ['marque', 'nom', 'serie', 'quantite'];
+      if (!cfg) {
+        simples.concat(['etat', 'comment']).forEach(k => {
+          refs[k].disabled = true;
+          refs[k].value = '';
+        });
+        return;
+      }
+      simples.forEach(k => {
+        refs[k].disabled = !cfg[k];
+        if (!cfg[k]) refs[k].value = '';
+      });
+      refs.etat.disabled = false;
+      refs.comment.disabled = false;
+    }
+
+    refs.type.addEventListener('change', (e) => majChampsMateriel(e.target.value));
+    majChampsMateriel(''); // état initial : tout est désactivé
+
+    return container;
+  }
+
+  // Au chargement de la page : je peux créer une action de démonstration ou laisser vide.
+  // (Je laisse vide pour l'utilisateur)
+  // Ex : btnAddAction.click(); // pour pré-créer une action
+
+  </script>
+
+  <!-- ============================
+       BLOC 3 : Décharge / Restitution (stable, corrigé)
+       ============================ -->
+
+  <form id="blocDécharge" class="bloc-formulaire" style="display:none;">
+    <fieldset>
+      <legend>Restitution du matériel</legend>
+
+      <div class="two-col" style="margin-top:8px;">
+        <div><label>Nom de l’employé</label><input type="text" id="NomEmployéRestitution" /></div>
+        <div><label>Nom du gestionnaire</label><input type="text" id="NomGestionnaireRestitution" /></div>
+      </div>
+
+
+      <label>Matériel restitué (Selectionnez tous les mat correpondant)</label>
+      <div id="returnMaterialCheckboxes">
+        <label><input type="checkbox" data-type="Cles" onchange="handleReturnToggle(this)"> Clés du bureau</label>
+        <label><input type="checkbox" data-type="Badge" onchange="handleReturnToggle(this)"> Badge d’accès</label>
+        <label><input type="checkbox" data-type="LigneTel" onchange="handleReturnToggle(this)"> Téléphone Cellulaire</label>
+        <label><input type="checkbox" data-type="Laptop" onchange="handleReturnToggle(this)"> Ordinateur / Laptop</label>
+        <label><input type="checkbox" data-type="Moniteur" onchange="handleReturnToggle(this)"> Moniteur</label>
+        <label><input type="checkbox" data-type="Tablette" onchange="handleReturnToggle(this)"> Tablette</label>
+        <label><input type="checkbox" data-type="Accessoire" onchange="handleReturnToggle(this)"> Accessoires</label>
+        <label><input type="checkbox" data-type="Autres" onchange="handleReturnToggle(this)"> Autres</label>
+      </div>
+
+      <div id="returnTablesContainer" style="margin-top:12px;"></div>
+
+      <label>Motif de restitution :</label>
+      <select id="motifRestitution" onchange="toggleDepartDateReturn()">
+        <option value="">-- Sélectionner --</option>
+        <option value="FinContrat">Réparation</option>
+        <option value="ChangementPoste">Changement</option>
+        <option value="Départ">Départ</option>
+        <option value="Autres">Autres</option>
+      </select>
+
+      <div id="AutresBlock" style="display:none; margin-top:8px;">
+        <label>Veuillez Préciser autre motif de restitution :</label>
+        <input type="text" id="Autres" />
+      </div>
+
+      <div id="dateDepartBlock" style="display:none; margin-top:8px;">
+        <label>Date de départ :</label>
+        <input type="date" id="dateDepart">
+      </div>
+
+      <label>Déclaration de l’employé</label>
+      <textarea readonly class="bloc-texte" style="min-height:80px;">
+L'employé déclare avoir restitué tout matériel appartenant au CDÉNÉ et avoir complété la passation de consignes.
+      </textarea>
+
+      <label>Réserves éventuelles</label>
+      <textarea readonly class="bloc-texte" style="min-height:80px;">
+L'employeur se réserve le droit de réclamer réparation si un matériel est jugé manquant, endommagé ou non fonctionnel.
+      </textarea>
+
+      <label>Date de restitution</label>
+      <input type="date" id="dateRestitution3" />
+
+      
+      <div class="two-col" style="margin-top:8px;">
+        <div><label>Signature de l’employé</label><input type="text" id="signatureEmploye3" /></div>
+        <div><label>Signature du gestionnaire</label><input type="text" id="signatureGestionnaire3" /></div>
+      </div>
+    </fieldset>
+  </form>
+
+  <!-- Script Bloc 3 (retours) -->
+  <script>
+  // Config pour le bloc retour (similaire au materialConfig)
+  const returnConfig = {
+    'Cles': { title:'Clés du bureau', columns:[{key:'info',label:'Quantité',type:'text'}], defaultRow:{info:''} },
+    'Badge': { title:'Badge d’accès', columns:[{key:'info',label:'Quantité',type:'text'}], defaultRow:{info:''} },
+    'LigneTel': { title:'Téléphone cellulaire', columns:[
+        {key:'Marque',label:'Marque',type:'text'},
+        {key:'info',label:'N° de série',type:'text'}
+      ], defaultRow:{Marque:'', info:''}},
+    'Laptop': { title:'Ordinateur / Laptop', columns:[
+        {key:'marque',label:'Marque',type:'text'},
+        {key:'nom',label:"Nom de l'ordinateur",type:'text'},
+        {key:'serie',label:'N° de série',type:'text'}
+      ], defaultRow:{marque:'',nom:'',serie:''}},
+    'Moniteur': { title:'Moniteur', columns:[
+        {key:'marque',label:'Marque',type:'text'},
+        {key:'serie',label:'N° de série',type:'text'}
+      ], defaultRow:{marque:'',serie:''}},
+    'Tablette': { title:'Tablette', columns:[
+        {key:'marque',label:'Marque',type:'text'},
+        {key:'serie',label:'N° de série',type:'text'}
+      ], defaultRow:{marque:'',serie:''}},
+    'Accessoire': { title:'Accessoires', columns:[
+        {key:'detail',label:'Précisez',type:'text'},
+        {key:'marque',label:'Marque',type:'text'},
+        {key:'serie',label:'N° de série',type:'text'}
+      ], defaultRow:{detail:'',marque:'',serie:''}},
+    'Autres': { title:'Autres', columns:[
+        {key:'detail',label:'Veuillez préciser',type:'text'}
+      ], defaultRow:{detail:''}},
+  };
+
+  // Gestion d'affichage des blocs de restitution suivant checkboxes
+  function handleReturnToggle(checkbox) {
+    const type = checkbox.dataset.type;
+    if (checkbox.checked) {
+      if (!document.querySelector(`#returnTableBlock-${type}`)) {
+        const block = createReturnTable(type);
+        const labels = Array.from(document.querySelectorAll('#returnMaterialCheckboxes label'));
+        const after = labels.find(l => l.querySelector(`input[data-type="${type}"]`));
+        if (after && after.parentNode) after.parentNode.insertBefore(block, after.nextSibling);
+        else document.getElementById('returnTablesContainer').appendChild(block);
+      }
+    } else {
+      const b = document.querySelector(`#returnTableBlock-${type}`);
+      if (b) b.remove();
+    }
+  }
+
+  // Création d'un bloc de restitution (Bloc 3)
+  function createReturnTable(type) {
+    const cfg = returnConfig[type];
+    const wrap = document.createElement('div');
+    wrap.id = `returnTableBlock-${type}`;
+    wrap.className = 'material-table-block';
+    wrap.style.margin = '10px 0 18px 0';
+    wrap.style.padding = '10px';
+    wrap.style.border = '1px solid #7a9ab8';
+    wrap.style.borderRadius = '8px';
+    wrap.style.background = '#eef6fb';
+
+    const header = document.createElement('div');
+    header.style.display='flex';
+    header.style.justifyContent='space-between';
+    header.style.alignItems='center';
+
+    const t = document.createElement('strong');
+    t.textContent = cfg.title;
+    header.appendChild(t);
+
+    const controls = document.createElement('div');
+    controls.className = 'controls';
+
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.textContent = '➕ Ajouter';
+    addBtn.style.marginRight = '8px';
+    addBtn.classList.add('no-pdf');
+    addBtn.onclick = () => addReturnRow(type);
+    controls.appendChild(addBtn);
+
+    const removeBlockBtn = document.createElement('button');
+    removeBlockBtn.type = 'button';
+    removeBlockBtn.textContent = '❌';
+    removeBlockBtn.classList.add('no-pdf');
+    removeBlockBtn.onclick = () => {
+      const cb = document.querySelector(`#returnMaterialCheckboxes input[data-type="${type}"]`);
+      if (cb) { cb.checked = false; }
+      wrap.remove();
+    };
+    controls.appendChild(removeBlockBtn);
+
+    header.appendChild(controls);
+    wrap.appendChild(header);
+
+    const table = document.createElement('table');
+    table.style.width='100%';
+    table.style.borderCollapse='collapse';
+    table.style.marginTop='10px';
+    table.dataset.type = type;
+
+    const thead = document.createElement('thead');
+    const trh = document.createElement('tr');
+    cfg.columns.forEach(c => {
+      const th = document.createElement('th');
+      th.textContent = c.label;
+      th.style.borderBottom='2px solid #b8d5e8';
+      th.style.padding='6px';
+      trh.appendChild(th);
+    });
+    const thd = document.createElement('th'); thd.style.width='60px'; trh.appendChild(thd);
+    thead.appendChild(trh);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+
+    addReturnRow(type);
+
+    return wrap;
+  }
+
+  // Ajouter une ligne dans un tableau de restitution
+  function addReturnRow(type) {
+    const cfg = returnConfig[type];
+    const block = document.querySelector(`#returnTableBlock-${type}`);
+    if (!block) return;
+    const table = block.querySelector('table');
+    const tbody = table.querySelector('tbody');
+
+    const tr = document.createElement('tr');
+    tr.style.borderBottom='1px solid #e0eef7';
+
+    cfg.columns.forEach(col => {
+      const td = document.createElement('td');
+      td.style.padding='6px';
+      const input = document.createElement('input');
+      input.type='text';
+      input.name=`restitution[${type}][][${col.key}]`;
+      input.value=cfg.defaultRow[col.key] || '';
+      input.style.width='100%';
+      input.style.boxSizing='border-box';
+      input.style.padding='6px';
+      input.style.border='1px solid #9fb7cc';
+      input.style.borderRadius='6px';
+      td.appendChild(input);
+      tr.appendChild(td);
+    });
+
+    const tdDel = document.createElement('td');
+    tdDel.style.padding='6px';
+    const delBtn = document.createElement('button');
+    delBtn.type='button';
+    delBtn.textContent='Supprimer';
+    delBtn.classList.add('no-pdf');
+    delBtn.onclick = () => tr.remove();
+    tdDel.appendChild(delBtn);
+    tr.appendChild(tdDel);
+
+    tbody.appendChild(tr);
+  }
+
+  // Afficher le dateDepartBlock si motif = Depart
+  function toggleDepartDateReturn() {
+    const motif = document.getElementById('motifRestitution').value;
+    const dateDepartBlock = document.getElementById('dateDepartBlock');
+    if (motif === 'Départ') {
+      if (dateDepartBlock) dateDepartBlock.style.display = 'block';
+    } else {
+      if (dateDepartBlock) dateDepartBlock.style.display = 'none';
+      const dd = document.getElementById('dateDepart');
+      if (dd) dd.value = '';
+    }
+  }
+  </script>
+
+  <!-- ============================
+       BLOC 4 : SIGNATURES (toujours visible)
+       L'employé et le gestionnaire signent à la souris ou au doigt.
+       ============================ -->
+  <div id="blocSignatures" class="bloc-formulaire">
+    <fieldset>
+      <legend>Signatures</legend>
+
+      <p class="sig-hint no-pdf">✍️ Signez directement dans les cadres ci-dessous (à la souris, au doigt ou au stylet). Utilisez « Effacer » pour recommencer.</p>
+
+      <div class="two-col">
+        <div>
+          <label>Nom de l’employé</label>
+          <input type="text" id="sigNomEmploye" placeholder="Nom en lettres moulées" />
+          <label>Signature de l’employé</label>
+          <canvas id="sigEmploye" class="signature-pad" width="440" height="160"></canvas>
+          <button type="button" class="no-pdf small" style="margin-top:6px;" onclick="effacerSignature('sigEmploye')">Effacer</button>
+        </div>
+        <div>
+          <label>Nom du gestionnaire</label>
+          <input type="text" id="sigNomGestionnaire" placeholder="Nom en lettres moulées" />
+          <label>Signature du gestionnaire</label>
+          <canvas id="sigGestionnaire" class="signature-pad" width="440" height="160"></canvas>
+          <button type="button" class="no-pdf small" style="margin-top:6px;" onclick="effacerSignature('sigGestionnaire')">Effacer</button>
+        </div>
+      </div>
+
+      <label>Date de signature</label>
+      <input type="date" id="sigDate" style="max-width:220px;" />
+    </fieldset>
+  </div>
+
+</div> <!-- fin formMateriel -->
+
+<!-- Bouton Télécharger PDF (marqué .no-pdf) -->
+<div class="center">
+  <button id="btnDownloadPDF" class="no-pdf">📄 Télécharger PDF</button>
+</div>
+
+<!-- ============================
+     SCRIPT GÉNÉRAL (ADMIN + UTILITAIRES + PDF)
+     ============================ -->
+<script>
+/* ===== Admin Toggle ===== */
+function toggleAdminPanel() {
+  const panel = document.getElementById('adminPanel');
+  if (panel.style.display === 'none' || panel.style.display === '') {
+    const mdp = prompt("⚙️ Entrez le mot de passe administrateur :");
+    if (mdp === "admin123") panel.style.display = 'block';
+    else alert("Mot de passe incorrect ! Le panneau admin restera caché.");
+  } else panel.style.display = 'none';
+}
+
+/* ===== Helpers pour blocs (majChamps + toggleBloc) ===== */
+function majChamps(bloc) {
+  const el = document.getElementById('typeMateriel' + bloc);
+  if (!el) return;
+  const type = el.value;
+  const showMarque = ['Ordinateur/Laptop','Tablette','Accessoires','Cellulaire','Moniteur'];
+  const blocMarque = document.getElementById('blocMarque'+bloc);
+  const blocNomOrdi = document.getElementById('blocNomOrdinateur'+bloc);
+  const blocSerie = document.getElementById('blocNumeroSerie'+bloc);
+  const blocAutres = document.getElementById('blocAutres'+bloc);
+  let blocAccessoire = document.getElementById('blocAccessoire'+bloc);
+  if (!blocAccessoire) {
+    blocAccessoire = document.createElement('div');
+    blocAccessoire.id = 'blocAccessoire'+bloc;
+    blocAccessoire.style.display='none';
+    blocAccessoire.innerHTML=`<label>Type d’accessoire</label><input type="text" id="accessoire${bloc}" placeholder="Ex: Souris, Clavier, Docking..." />`;
+    if (blocMarque) blocMarque.after(blocAccessoire);
+  }
+  if (blocMarque) blocMarque.style.display = showMarque.includes(type)?'block':'none';
+  if (blocNomOrdi) blocNomOrdi.style.display = (type==='Ordinateur/Laptop')?'block':'none';
+  if (blocSerie) blocSerie.style.display = showMarque.includes(type)?'block':'none';
+  if (blocAutres) blocAutres.style.display = (type==='Autres')?'block':'none';
+  if (blocAccessoire) blocAccessoire.style.display = (type==='Accessoires')?'block':'none';
+}
+
+function toggleBloc(id) {
+  const bloc = document.getElementById(id);
+  if (!bloc) return;
+  bloc.style.display = (bloc.style.display==='none'||bloc.style.display==='')?'block':'none';
+}
+
+/* ===== Auto-resize textarea ===== */
+document.addEventListener('input', e=>{
+  if(e.target && e.target.tagName==='TEXTAREA') {
+    e.target.style.height='auto';
+    e.target.style.height=(e.target.scrollHeight)+'px';
+  }
+});
+document.querySelectorAll('textarea').forEach(t=>{
+  t.style.height='auto';
+  t.style.height=(t.scrollHeight)+'px';
+});
+
+/* ===== Signatures manuscrites (employé / gestionnaire) =====
+   Chaque cadre est un <canvas> : on dessine avec la souris, le doigt ou un stylet.
+   Les Pointer Events couvrent les trois cas. */
+function initSignaturePad(id) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  // fond blanc (pour que le PDF soit propre)
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = '#00264d';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  let enTrainDeSigner = false;
+
+  // convertit la position de l'écran vers les coordonnées internes du canvas
+  const position = (e) => {
+    const r = canvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - r.left) * (canvas.width / r.width),
+      y: (e.clientY - r.top) * (canvas.height / r.height)
+    };
+  };
+
+  canvas.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    enTrainDeSigner = true;
+    canvas.setPointerCapture(e.pointerId);
+    const p = position(e);
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    ctx.lineTo(p.x + 0.1, p.y + 0.1); // trace un point même sur un simple clic
+    ctx.stroke();
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (!enTrainDeSigner) return;
+    e.preventDefault();
+    const p = position(e);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+  });
+
+  const arreter = () => { enTrainDeSigner = false; };
+  canvas.addEventListener('pointerup', arreter);
+  canvas.addEventListener('pointercancel', arreter);
+}
+
+function effacerSignature(id) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+initSignaturePad('sigEmploye');
+initSignaturePad('sigGestionnaire');
+
+/* ===== PDF generation (clonage + nettoyage + capture) ===== */
+document.getElementById('btnDownloadPDF').addEventListener('click', genererPDFGlobal);
+
+async function genererPDFGlobal() {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF('p','pt','a4');
+  const imgWidth = 595.28; const pageHeight=841.89; const marginTop=20; let yOffset=marginTop;
+
+  async function captureElementToCanvas(element){
+    // je clone pour ne pas altérer l'UI visible
+    const clone = element.cloneNode(true);
+
+    // IMPORTANT : cloneNode ne copie PAS le contenu dessiné des <canvas>.
+    // Je recopie donc les signatures de l'original vers le clone.
+    const canvasOriginaux = element.querySelectorAll('canvas');
+    const canvasClones = clone.querySelectorAll('canvas');
+    canvasClones.forEach((cc, i) => {
+      const oc = canvasOriginaux[i];
+      if (oc) {
+        const cctx = cc.getContext('2d');
+        cctx.drawImage(oc, 0, 0);
+      }
+    });
+
+    // je supprime le panneau admin si présent
+    const adminInClone = clone.querySelector('#adminPanel');
+    if (adminInClone) adminInClone.remove();
+
+    // je supprime le bouton télécharger si présent
+    const btnInClone = clone.querySelector('#btnDownloadPDF');
+    if (btnInClone) btnInClone.remove();
+
+    // IMPORTANT : je supprime tout ce qui est marqué .no-pdf
+    clone.querySelectorAll('.no-pdf').forEach(el => el.remove());
+
+    // je remplace les textarea par des div pour une capture correcte du texte multiligne
+    clone.querySelectorAll('textarea').forEach(t=>{
+      const div = document.createElement('div');
+      div.style.whiteSpace = 'pre-wrap';
+      div.style.minHeight = t.style.height || 'auto';
+      div.style.padding = window.getComputedStyle(t).padding || '6px';
+      div.style.border = 'none';
+      div.style.font = window.getComputedStyle(t).font || '14px/1.4 sans-serif';
+      div.textContent = t.value || t.innerText || '';
+      t.parentNode.replaceChild(div, t);
+    });
+
+    // je place le clone hors-écran pour la capture
+    const wrapper = document.createElement('div');
+    wrapper.style.position='fixed';
+    wrapper.style.left='-9999px';
+    wrapper.style.top='0';
+    wrapper.style.width = element.offsetWidth + 'px';
+    wrapper.appendChild(clone);
+    document.body.appendChild(wrapper);
+
+    // capture haute résolution
+    const canvas = await html2canvas(clone, { scale: 2, useCORS: true, scrollY: -window.scrollY, windowWidth: document.documentElement.scrollWidth });
+
+    document.body.removeChild(wrapper);
+    return canvas;
+  }
+
+  async function captureAndAdd(element,currentYOffset){
+    const canvas = await captureElementToCanvas(element);
+    const imgHeightPt = (canvas.height * imgWidth) / canvas.width;
+    if (currentYOffset + imgHeightPt <= pageHeight) {
+      pdf.addImage(canvas.toDataURL('image/png'),'PNG',0,currentYOffset,imgWidth,imgHeightPt);
+      return currentYOffset + imgHeightPt + 10;
+    } else {
+      // découpage si nécessaire
+      let srcY = 0; const pxPerPt = canvas.height/imgHeightPt; let yOffsetPt = currentYOffset;
+      while (srcY < canvas.height) {
+        const spacePt = pageHeight - yOffsetPt;
+        const srcSliceH = Math.floor(spacePt * pxPerPt);
+        const tmpCanvas = document.createElement('canvas'); tmpCanvas.width = canvas.width; tmpCanvas.height = Math.min(srcSliceH, canvas.height - srcY);
+        const ctx = tmpCanvas.getContext('2d');
+        ctx.drawImage(canvas, 0, srcY, tmpCanvas.width, tmpCanvas.height, 0, 0, tmpCanvas.width, tmpCanvas.height);
+        const dataUrl = tmpCanvas.toDataURL('image/png');
+        const drawHeightPt = (tmpCanvas.height * imgWidth) / tmpCanvas.width;
+        pdf.addImage(dataUrl,'PNG',0,yOffsetPt,imgWidth,drawHeightPt);
+        srcY += tmpCanvas.height;
+        if (srcY < canvas.height) { pdf.addPage(); yOffsetPt = marginTop; } else yOffsetPt += drawHeightPt + 10;
+      }
+      return yOffsetPt;
+    }
+  }
+
+  // capture entête et instructions
+  const enTeteEl=document.getElementById('enTetePDF');
+  const instructionsEl=document.getElementById('instructionsPDF');
+  if(enTeteEl) yOffset=await captureAndAdd(enTeteEl,yOffset);
+  if(instructionsEl) yOffset=await captureAndAdd(instructionsEl,yOffset);
+
+  // capture blocs visibles (Attribution / Suivi / Décharge)
+  const allBlocs=document.querySelectorAll('.bloc-formulaire');
+  for(const bloc of allBlocs){
+    const style=window.getComputedStyle(bloc);
+    if(style.display==='none') continue;
+    bloc.querySelectorAll('textarea').forEach(t=>{ t.style.height='auto'; t.style.height=(t.scrollHeight)+'px'; });
+    yOffset = await captureAndAdd(bloc,yOffset);
+  }
+
+  pdf.save('Decharge_CDENE.pdf');
+}
+</script>
+
+</body>
+</html>
