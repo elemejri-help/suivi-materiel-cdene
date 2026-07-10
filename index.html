@@ -1087,6 +1087,10 @@ async function genererPDFGlobal() {
     clone.querySelectorAll('textarea').forEach(t=>{
       const div = document.createElement('div');
       div.style.whiteSpace = 'pre-wrap';
+      div.style.overflowWrap = 'anywhere';  // coupe aussi les très longs mots sans espaces
+      div.style.wordBreak = 'break-word';
+      div.style.width = '100%';
+      div.style.boxSizing = 'border-box';
       div.style.minHeight = t.style.height || 'auto';
       div.style.padding = window.getComputedStyle(t).padding || '6px';
       div.style.border = 'none';
@@ -1114,11 +1118,20 @@ async function genererPDFGlobal() {
   async function captureAndAdd(element,currentYOffset){
     const canvas = await captureElementToCanvas(element);
     const imgHeightPt = (canvas.height * imgWidth) / canvas.width;
+
+    // Si le bloc ne tient pas dans l'espace restant de la page courante,
+    // je passe à une nouvelle page au lieu de le couper en deux.
+    // (Un bloc n'est découpé que s'il est plus haut qu'une page entière.)
+    if (currentYOffset + imgHeightPt > pageHeight && currentYOffset > marginTop) {
+      pdf.addPage();
+      currentYOffset = marginTop;
+    }
+
     if (currentYOffset + imgHeightPt <= pageHeight) {
       pdf.addImage(canvas.toDataURL('image/png'),'PNG',0,currentYOffset,imgWidth,imgHeightPt);
       return currentYOffset + imgHeightPt + 10;
     } else {
-      // découpage si nécessaire
+      // découpage si nécessaire (bloc plus haut qu'une page entière)
       let srcY = 0; const pxPerPt = canvas.height/imgHeightPt; let yOffsetPt = currentYOffset;
       while (srcY < canvas.height) {
         const spacePt = pageHeight - yOffsetPt;
