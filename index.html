@@ -68,6 +68,8 @@
   .sub-block { background:#f4fbff; padding:10px; border-radius:6px; margin-top:10px; }
   .sub-block[data-role="retour"] { background:#fdf3e4; border:1px solid #e3c99e; }
   .sub-block[data-role="retour"] > strong { color:#9a6a00; }
+  .sub-block[data-role="restitution"] { background:#fdf3e4; border:1px solid #e3c99e; }
+  .sub-block[data-role="restitution"] > strong { color:#9a6a00; }
   .sub-block[data-role="nouveau"] { background:#ecf7ec; border:1px solid #bcd9bc; }
   .sub-block[data-role="nouveau"] > strong { color:#1e5c1e; }
   .action-header { display:flex; justify-content:space-between; align-items:center; gap:10px; }
@@ -478,8 +480,9 @@ if (btnGroupByType) btnGroupByType.onclick = groupAttributionRowsByType;
     otherDesc.style.display = 'none';
 
     // Je crée des sous-blocs réutilisables (retour et nouveau) mais je ne les attache pas tout de suite
-    const retourBlock = createMaterielSubBlock(id, 'retour'); // matériel retourné (pour Changement ou Retour)
+    const retourBlock = createMaterielSubBlock(id, 'retour'); // matériel retourné détaillé (pour Changement)
     const nouveauBlock = createMaterielSubBlock(id, 'nouveau'); // matériel reçu (pour Changement ou Ajout)
+    const restitutionBlock = createRestitutionSubBlock(id); // panneau de restitution (pour Retour du matériel)
 
     // Je construis le DOM
     block.appendChild(header);
@@ -491,7 +494,7 @@ if (btnGroupByType) btnGroupByType.onclick = groupAttributionRowsByType;
       const val = e.target.value;
       // je nettoie le zone content (sauf textarea otherDesc que je garde)
       // Retirer les sub-blocks déjà attachés (si présents)
-      [retourBlock, nouveauBlock].forEach(sb => {
+      [retourBlock, nouveauBlock, restitutionBlock].forEach(sb => {
         if (sb.parentNode === content) content.removeChild(sb);
       });
       // cacher otherDesc par défaut
@@ -505,8 +508,9 @@ if (btnGroupByType) btnGroupByType.onclick = groupAttributionRowsByType;
         content.appendChild(retourBlock);
         content.appendChild(nouveauBlock);
       } else if (val === 'Retour') {
-        // Pour Retour matériel : on montre uniquement "retour"
-        content.appendChild(retourBlock);
+        // Pour Retour du matériel : panneau de restitution
+        // (cases à cocher, motif, déclaration, réserves)
+        content.appendChild(restitutionBlock);
       } else if (val === 'Autre') {
         // Si Autre : on montre le textarea libre
         otherDesc.style.display = 'block';
@@ -544,6 +548,90 @@ if (btnGroupByType) btnGroupByType.onclick = groupAttributionRowsByType;
     return block;
   }
 
+  // Panneau de restitution pour l'action « Retour du matériel » :
+  // cases à cocher, motif, déclaration et réserves (comme la maquette).
+  function createRestitutionSubBlock(actionId) {
+    const container = document.createElement('div');
+    container.className = 'sub-block';
+    container.dataset.role = 'restitution';
+
+    const title = document.createElement('strong');
+    title.textContent = 'Matériel retourné';
+    container.appendChild(title);
+
+    const lblListe = document.createElement('label');
+    lblListe.textContent = 'Matériel restitué (Sélectionnez tous les matériels correspondants)';
+    container.appendChild(lblListe);
+
+    const grid = document.createElement('div');
+    grid.className = 'checkbox-grid';
+    ['Clés du bureau','Badge d’accès','Téléphone Cellulaire','Ordinateur / Laptop','Moniteur','Tablette','Accessoires','Autres'].forEach(nom => {
+      const l = document.createElement('label');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.name = `action[${actionId}][restitution][${nom}]`;
+      l.appendChild(cb);
+      l.appendChild(document.createTextNode(' ' + nom));
+      grid.appendChild(l);
+    });
+    container.appendChild(grid);
+
+    const lblMotif = document.createElement('label');
+    lblMotif.textContent = 'Motif de restitution :';
+    container.appendChild(lblMotif);
+    const motif = document.createElement('select');
+    motif.name = `action[${actionId}][restitution][motif]`;
+    [['','-- Sélectionner --'],['En Réparation','En Réparation'],['Endommagé','Endommagé'],['Départ','Départ'],['Autres','Autres']].forEach(([v,t]) => {
+      const o = document.createElement('option'); o.value = v; o.textContent = t; motif.appendChild(o);
+    });
+    container.appendChild(motif);
+
+    // champs conditionnels (précision « Autres », date de départ)
+    const autresDiv = document.createElement('div');
+    autresDiv.style.display = 'none'; autresDiv.style.marginTop = '8px';
+    const lblAutres = document.createElement('label');
+    lblAutres.textContent = 'Veuillez préciser l’autre motif de restitution :';
+    const inpAutres = document.createElement('input');
+    inpAutres.type = 'text'; inpAutres.name = `action[${actionId}][restitution][autresMotif]`;
+    autresDiv.appendChild(lblAutres); autresDiv.appendChild(inpAutres);
+    container.appendChild(autresDiv);
+
+    const departDiv = document.createElement('div');
+    departDiv.style.display = 'none'; departDiv.style.marginTop = '8px';
+    const lblDep = document.createElement('label');
+    lblDep.textContent = 'Date de départ :';
+    const inpDep = document.createElement('input');
+    inpDep.type = 'date'; inpDep.name = `action[${actionId}][restitution][dateDepart]`;
+    departDiv.appendChild(lblDep); departDiv.appendChild(inpDep);
+    container.appendChild(departDiv);
+
+    motif.addEventListener('change', () => {
+      departDiv.style.display = (motif.value === 'Départ') ? 'block' : 'none';
+      if (motif.value !== 'Départ') inpDep.value = '';
+      autresDiv.style.display = (motif.value === 'Autres') ? 'block' : 'none';
+      if (motif.value !== 'Autres') inpAutres.value = '';
+    });
+
+    const lblDecl = document.createElement('label');
+    lblDecl.textContent = 'Déclaration de l’employé';
+    container.appendChild(lblDecl);
+    const pDecl = document.createElement('p');
+    pDecl.style.margin = '4px 0 0 0'; pDecl.style.lineHeight = '1.5';
+    pDecl.textContent = "L'employé déclare avoir restitué tout matériel appartenant au CDÉNÉ et avoir complété la passation de consignes.";
+    container.appendChild(pDecl);
+
+    const lblRes = document.createElement('label');
+    lblRes.textContent = 'Réserves éventuelles (remplies par le/la gestionnaire) — maximum 1000 caractères';
+    container.appendChild(lblRes);
+    const tRes = document.createElement('textarea');
+    tRes.maxLength = 1000;
+    tRes.placeholder = 'Entrez vos réserves éventuelles ici...';
+    tRes.name = `action[${actionId}][restitution][reserves]`;
+    container.appendChild(tRes);
+
+    return container;
+  }
+
   // Fonction qui duplique une action.
   // NB : l'ancienne version utilisait cloneNode, mais le clone perdait les
   // valeurs saisies ET ses menus ne réagissaient plus (les écouteurs
@@ -568,9 +656,13 @@ if (btnGroupByType) btnGroupByType.onclick = groupAttributionRowsByType;
       const nf = nouveauxChamps[i];
       if (!nf) return;
       nf.value = el.value;
+      if (el.type === 'checkbox' || el.type === 'radio') nf.checked = el.checked;
       nf.disabled = el.disabled;
       if (el.style.display) nf.style.display = el.style.display;
     });
+
+    // je réapplique l'affichage des champs conditionnels (motif de restitution, etc.)
+    nouveau.querySelectorAll('.sub-block select').forEach(s => s.dispatchEvent(new Event('change')));
   }
 
   // Création d'un sous-block pour saisir les infos d'un matériel (réutilisable)
