@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Décharge du Matériel – CDÉNÉ</title>
+<title>Suivi et restitution du Matériel – CDÉNÉ</title>
 
 <!-- libs -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -101,12 +101,11 @@
 <div id="enTetePDF">
   <!-- Je place le logo et le titre en haut -->
   <img src="banniere-cdene.jpeg" alt="Bannière CDÉNÉ" />
-  <h1>Décharge du Matériel – CDÉNÉ</h1>
+  <h1>Suivi et restitution du Matériel – CDÉNÉ</h1>
 </div>
 
 <p id="instructionsPDF" class="instructions">
-  <!-- Je décris brièvement l'objet du formulaire -->
-  Ce formulaire est utilisé pour documenter <strong>l’attribution, le suivi et la restitution</strong> des biens du CDÉNÉ dans le cadre du cycle d’emploi d’un collaborateur. Il doit être complété par le gestionnaire direct ou son représentant. Une fois rempli, il doit être archivé et transmis aux ressources humaines.
+  (les signatures de l’employée et du gestionnaire sont requises)
 </p>
 
 <!-- admin panel toggle -->
@@ -325,7 +324,6 @@ if (btnGroupByType) btnGroupByType.onclick = groupAttributionRowsByType;
 
       <div class="two-col">
         <div><label>Nom de l’employé</label><input type="text" id="nomSuivi" /></div>
-        <div><label>Nom du gestionnaire</label><input type="text" id="gestionnaireSuivi" /></div>
       </div>
 
       <!-- Conteneur pour toutes les actions -->
