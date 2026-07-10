@@ -361,17 +361,7 @@ if (btnGroupByType) btnGroupByType.onclick = groupAttributionRowsByType;
     { value:'Autres',     label:'Autres' }
   ];
 
-  // Champs actifs selon le type de matériel choisi
-  const champsParType = {
-    'Cles':       { marque:false, nom:false, serie:false, quantite:true },
-    'Badge':      { marque:false, nom:false, serie:false, quantite:true },
-    'LigneTel':   { marque:true,  nom:false, serie:true,  quantite:false },
-    'Laptop':     { marque:true,  nom:true,  serie:true,  quantite:false },
-    'Moniteur':   { marque:true,  nom:false, serie:true,  quantite:false },
-    'Tablette':   { marque:true,  nom:false, serie:true,  quantite:false },
-    'Accessoire': { marque:true,  nom:true,  serie:true,  quantite:true },
-    'Autres':     { marque:true,  nom:true,  serie:true,  quantite:true }
-  };
+  // NB : tous les champs restent toujours accessibles, quel que soit le type choisi.
 
   // Configuration des champs pour un matériel (réutilisable)
   const materielFields = [
@@ -386,7 +376,7 @@ if (btnGroupByType) btnGroupByType.onclick = groupAttributionRowsByType;
         { value:'Moyen',   label:'Moyen' },
         { value:'Mauvais', label:'Mauvais' }
       ] },
-    { key: 'comment',  label: 'Commentaire', type: 'textarea' }
+    { key: 'comment',  label: 'Commentaire (maximum 1000 caractères)', type: 'textarea', maxlength: 1000 }
   ];
 
   // Je garde un compteur simple pour donner des IDs uniques à chaque action
@@ -606,6 +596,7 @@ if (btnGroupByType) btnGroupByType.onclick = groupAttributionRowsByType;
         });
       } else if (field.type === 'textarea') {
         input = document.createElement('textarea');
+        if (field.maxlength) input.maxLength = field.maxlength;
       } else {
         input = document.createElement('input');
         input.type = field.type; // 'text' ou 'number'
@@ -618,30 +609,7 @@ if (btnGroupByType) btnGroupByType.onclick = groupAttributionRowsByType;
       container.appendChild(fieldWrapper);
     });
 
-    // J'active/désactive les champs selon le type de matériel choisi
-    // (comme dans la version publiée de l'ancien formulaire : tout est grisé
-    //  tant qu'aucun type n'est sélectionné)
-    function majChampsMateriel(typeVal) {
-      const cfg = champsParType[typeVal];
-      const simples = ['marque', 'nom', 'serie', 'quantite'];
-      if (!cfg) {
-        simples.concat(['etat', 'comment']).forEach(k => {
-          refs[k].disabled = true;
-          refs[k].value = '';
-        });
-        return;
-      }
-      simples.forEach(k => {
-        refs[k].disabled = !cfg[k];
-        if (!cfg[k]) refs[k].value = '';
-      });
-      refs.etat.disabled = false;
-      refs.comment.disabled = false;
-    }
-
-    refs.type.addEventListener('change', (e) => majChampsMateriel(e.target.value));
-    majChampsMateriel(''); // état initial : tout est désactivé
-
+    // Tous les champs restent toujours accessibles, quel que soit le type.
     return container;
   }
 
