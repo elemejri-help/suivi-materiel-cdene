@@ -1161,6 +1161,11 @@ async function genererPDFGlobal() {
     const style=window.getComputedStyle(bloc);
     if(style.display==='none') continue;
     bloc.querySelectorAll('textarea').forEach(t=>{ t.style.height='auto'; t.style.height=(t.scrollHeight)+'px'; });
+    // Le bloc Signatures commence toujours sur une page séparée du PDF
+    if (bloc.id === 'blocSignatures' && yOffset > marginTop) {
+      pdf.addPage();
+      yOffset = marginTop;
+    }
     yOffset = await captureAndAdd(bloc,yOffset);
   }
 
