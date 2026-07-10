@@ -1116,20 +1116,36 @@ async function genererPDFGlobal() {
     return canvas;
   }
 
-  async function captureAndAdd(element,currentYOffset,keepWhole=false){
+  async function captureAndAdd(element,currentYOffset,keepWhole=false,fitToPage=false){
     const canvas = await captureElementToCanvas(element);
-    const imgHeightPt = (canvas.height * imgWidth) / canvas.width;
+    let drawWidthPt = imgWidth;
+    let imgHeightPt = (canvas.height * imgWidth) / canvas.width;
+
+    // fitToPage : si le bloc dépasse l'espace restant de la page, je le
+    // réduis légèrement (jusqu'à 60 % de sa taille) pour qu'il tienne EN
+    // ENTIER sur la page, au lieu de le couper en deux. Au-delà de cette
+    // limite (bloc vraiment très long), il continue sur la page suivante.
+    if (fitToPage) {
+      const espaceRestant = pageHeight - currentYOffset - 4;
+      if (imgHeightPt > espaceRestant) {
+        const ratio = espaceRestant / imgHeightPt;
+        if (ratio >= 0.6) {
+          drawWidthPt = imgWidth * ratio;
+          imgHeightPt = espaceRestant;
+        }
+      }
+    }
 
     // keepWhole : le bloc passe entier sur une nouvelle page plutôt que
-    // d'être coupé (utilisé pour le bloc Signatures). Les autres blocs
-    // coulent normalement d'une page à l'autre pour ne pas laisser de vide.
+    // d'être coupé (utilisé pour le bloc Signatures).
     if (keepWhole && currentYOffset + imgHeightPt > pageHeight && currentYOffset > marginTop) {
       pdf.addPage();
       currentYOffset = marginTop;
     }
 
     if (currentYOffset + imgHeightPt <= pageHeight) {
-      pdf.addImage(canvas.toDataURL('image/png'),'PNG',0,currentYOffset,imgWidth,imgHeightPt);
+      const xOffsetPt = (imgWidth - drawWidthPt) / 2; // je centre le bloc s'il a été réduit
+      pdf.addImage(canvas.toDataURL('image/png'),'PNG',xOffsetPt,currentYOffset,drawWidthPt,imgHeightPt);
       return currentYOffset + imgHeightPt + 10;
     } else {
       // découpage si nécessaire (bloc plus haut qu'une page entière)
@@ -1163,13 +1179,14 @@ async function genererPDFGlobal() {
     if(style.display==='none') continue;
     bloc.querySelectorAll('textarea').forEach(t=>{ t.style.height='auto'; t.style.height=(t.scrollHeight)+'px'; });
     // Le bloc Signatures commence toujours sur une page séparée du PDF
-    // et n'est jamais coupé; les autres blocs coulent de page en page.
+    // et n'est jamais coupé; les autres blocs sont ajustés pour tenir
+    // en entier sur la page (légère réduction si nécessaire).
     const keepWhole = (bloc.id === 'blocSignatures');
     if (keepWhole && yOffset > marginTop) {
       pdf.addPage();
       yOffset = marginTop;
     }
-    yOffset = await captureAndAdd(bloc,yOffset,keepWhole);
+    yOffset = await captureAndAdd(bloc,yOffset,keepWhole,!keepWhole);
   }
 
   pdf.save('Decharge_CDENE.pdf');
