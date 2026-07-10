@@ -88,6 +88,14 @@
   }
   .sig-hint { font-size:13px; color:#444; margin:4px 0 0 0; }
 
+  /* Thème du bloc Restitution (rouge/beige, comme la maquette) */
+  .bloc-restitution { background-color:#fdf6ec; border-color:#d9a692; }
+  .bloc-restitution fieldset { border-color:#b03a2e; }
+  .bloc-restitution legend { color:#b03a2e; }
+  .checkbox-grid { display:flex; flex-wrap:wrap; gap:10px 26px; margin:8px 0 4px 0; }
+  .checkbox-grid label { display:flex; align-items:center; gap:7px; margin:0; font-weight:600; }
+  input[type="checkbox"] { width:auto; min-height:auto; margin:0; }
+
   /* Responsive */
   @media (max-width:700px) {
     .two-col { flex-direction:column; }
@@ -624,41 +632,33 @@ if (btnGroupByType) btnGroupByType.onclick = groupAttributionRowsByType;
        BLOC 3 : Décharge / Restitution (stable, corrigé)
        ============================ -->
 
-  <form id="blocDécharge" class="bloc-formulaire" style="display:none;">
+  <form id="blocDécharge" class="bloc-formulaire bloc-restitution" style="display:none;">
     <fieldset>
-      <legend>Restitution du matériel</legend>
+      <legend>Restitution du Matériel</legend>
 
-      <div class="two-col" style="margin-top:8px;">
-        <div><label>Nom de l’employé</label><input type="text" id="NomEmployéRestitution" /></div>
-        <div><label>Nom du gestionnaire</label><input type="text" id="NomGestionnaireRestitution" /></div>
+      <label style="margin-top:4px;">Matériel restitué (Sélectionnez tous les matériels correspondants)</label>
+      <div id="returnMaterialCheckboxes" class="checkbox-grid">
+        <label><input type="checkbox" data-type="Cles"> Clés du bureau</label>
+        <label><input type="checkbox" data-type="Badge"> Badge d’accès</label>
+        <label><input type="checkbox" data-type="LigneTel"> Téléphone Cellulaire</label>
+        <label><input type="checkbox" data-type="Laptop"> Ordinateur / Laptop</label>
+        <label><input type="checkbox" data-type="Moniteur"> Moniteur</label>
+        <label><input type="checkbox" data-type="Tablette"> Tablette</label>
+        <label><input type="checkbox" data-type="Accessoire"> Accessoires</label>
+        <label><input type="checkbox" data-type="Autres"> Autres</label>
       </div>
-
-
-      <label>Matériel restitué (Selectionnez tous les mat correpondant)</label>
-      <div id="returnMaterialCheckboxes">
-        <label><input type="checkbox" data-type="Cles" onchange="handleReturnToggle(this)"> Clés du bureau</label>
-        <label><input type="checkbox" data-type="Badge" onchange="handleReturnToggle(this)"> Badge d’accès</label>
-        <label><input type="checkbox" data-type="LigneTel" onchange="handleReturnToggle(this)"> Téléphone Cellulaire</label>
-        <label><input type="checkbox" data-type="Laptop" onchange="handleReturnToggle(this)"> Ordinateur / Laptop</label>
-        <label><input type="checkbox" data-type="Moniteur" onchange="handleReturnToggle(this)"> Moniteur</label>
-        <label><input type="checkbox" data-type="Tablette" onchange="handleReturnToggle(this)"> Tablette</label>
-        <label><input type="checkbox" data-type="Accessoire" onchange="handleReturnToggle(this)"> Accessoires</label>
-        <label><input type="checkbox" data-type="Autres" onchange="handleReturnToggle(this)"> Autres</label>
-      </div>
-
-      <div id="returnTablesContainer" style="margin-top:12px;"></div>
 
       <label>Motif de restitution :</label>
-      <select id="motifRestitution" onchange="toggleDepartDateReturn()">
+      <select id="motifRestitution" onchange="toggleMotifRestitution()">
         <option value="">-- Sélectionner --</option>
-        <option value="FinContrat">Réparation</option>
-        <option value="ChangementPoste">Changement</option>
+        <option value="En Réparation">En Réparation</option>
+        <option value="Endommagé">Endommagé</option>
         <option value="Départ">Départ</option>
         <option value="Autres">Autres</option>
       </select>
 
       <div id="AutresBlock" style="display:none; margin-top:8px;">
-        <label>Veuillez Préciser autre motif de restitution :</label>
+        <label>Veuillez préciser l’autre motif de restitution :</label>
         <input type="text" id="Autres" />
       </div>
 
@@ -668,201 +668,29 @@ if (btnGroupByType) btnGroupByType.onclick = groupAttributionRowsByType;
       </div>
 
       <label>Déclaration de l’employé</label>
-      <textarea readonly class="bloc-texte" style="min-height:80px;">
-L'employé déclare avoir restitué tout matériel appartenant au CDÉNÉ et avoir complété la passation de consignes.
-      </textarea>
+      <p style="margin:4px 0 0 0; line-height:1.5;">L'employé déclare avoir restitué tout matériel appartenant au CDÉNÉ et avoir complété la passation de consignes.</p>
 
-      <label>Réserves éventuelles</label>
-      <textarea readonly class="bloc-texte" style="min-height:80px;">
-L'employeur se réserve le droit de réclamer réparation si un matériel est jugé manquant, endommagé ou non fonctionnel.
-      </textarea>
+      <label>Réserves éventuelles (remplies par le/la gestionnaire)</label>
+      <textarea id="reservesRestitution" maxlength="1000" placeholder="Entrez vos réserves éventuelles ici..."></textarea>
 
       <label>Date de restitution</label>
-      <input type="date" id="dateRestitution3" />
-
-      
-      <div class="two-col" style="margin-top:8px;">
-        <div><label>Signature de l’employé</label><input type="text" id="signatureEmploye3" /></div>
-        <div><label>Signature du gestionnaire</label><input type="text" id="signatureGestionnaire3" /></div>
-      </div>
+      <input type="date" id="dateRestitution3" style="max-width:220px;" />
     </fieldset>
   </form>
 
   <!-- Script Bloc 3 (retours) -->
   <script>
-  // Config pour le bloc retour (similaire au materialConfig)
-  const returnConfig = {
-    'Cles': { title:'Clés du bureau', columns:[{key:'info',label:'Quantité',type:'text'}], defaultRow:{info:''} },
-    'Badge': { title:'Badge d’accès', columns:[{key:'info',label:'Quantité',type:'text'}], defaultRow:{info:''} },
-    'LigneTel': { title:'Téléphone cellulaire', columns:[
-        {key:'Marque',label:'Marque',type:'text'},
-        {key:'info',label:'N° de série',type:'text'}
-      ], defaultRow:{Marque:'', info:''}},
-    'Laptop': { title:'Ordinateur / Laptop', columns:[
-        {key:'marque',label:'Marque',type:'text'},
-        {key:'nom',label:"Nom de l'ordinateur",type:'text'},
-        {key:'serie',label:'N° de série',type:'text'}
-      ], defaultRow:{marque:'',nom:'',serie:''}},
-    'Moniteur': { title:'Moniteur', columns:[
-        {key:'marque',label:'Marque',type:'text'},
-        {key:'serie',label:'N° de série',type:'text'}
-      ], defaultRow:{marque:'',serie:''}},
-    'Tablette': { title:'Tablette', columns:[
-        {key:'marque',label:'Marque',type:'text'},
-        {key:'serie',label:'N° de série',type:'text'}
-      ], defaultRow:{marque:'',serie:''}},
-    'Accessoire': { title:'Accessoires', columns:[
-        {key:'detail',label:'Précisez',type:'text'},
-        {key:'marque',label:'Marque',type:'text'},
-        {key:'serie',label:'N° de série',type:'text'}
-      ], defaultRow:{detail:'',marque:'',serie:''}},
-    'Autres': { title:'Autres', columns:[
-        {key:'detail',label:'Veuillez préciser',type:'text'}
-      ], defaultRow:{detail:''}},
-  };
-
-  // Gestion d'affichage des blocs de restitution suivant checkboxes
-  function handleReturnToggle(checkbox) {
-    const type = checkbox.dataset.type;
-    if (checkbox.checked) {
-      if (!document.querySelector(`#returnTableBlock-${type}`)) {
-        const block = createReturnTable(type);
-        const labels = Array.from(document.querySelectorAll('#returnMaterialCheckboxes label'));
-        const after = labels.find(l => l.querySelector(`input[data-type="${type}"]`));
-        if (after && after.parentNode) after.parentNode.insertBefore(block, after.nextSibling);
-        else document.getElementById('returnTablesContainer').appendChild(block);
-      }
-    } else {
-      const b = document.querySelector(`#returnTableBlock-${type}`);
-      if (b) b.remove();
-    }
-  }
-
-  // Création d'un bloc de restitution (Bloc 3)
-  function createReturnTable(type) {
-    const cfg = returnConfig[type];
-    const wrap = document.createElement('div');
-    wrap.id = `returnTableBlock-${type}`;
-    wrap.className = 'material-table-block';
-    wrap.style.margin = '10px 0 18px 0';
-    wrap.style.padding = '10px';
-    wrap.style.border = '1px solid #7a9ab8';
-    wrap.style.borderRadius = '8px';
-    wrap.style.background = '#eef6fb';
-
-    const header = document.createElement('div');
-    header.style.display='flex';
-    header.style.justifyContent='space-between';
-    header.style.alignItems='center';
-
-    const t = document.createElement('strong');
-    t.textContent = cfg.title;
-    header.appendChild(t);
-
-    const controls = document.createElement('div');
-    controls.className = 'controls';
-
-    const addBtn = document.createElement('button');
-    addBtn.type = 'button';
-    addBtn.textContent = '➕ Ajouter';
-    addBtn.style.marginRight = '8px';
-    addBtn.classList.add('no-pdf');
-    addBtn.onclick = () => addReturnRow(type);
-    controls.appendChild(addBtn);
-
-    const removeBlockBtn = document.createElement('button');
-    removeBlockBtn.type = 'button';
-    removeBlockBtn.textContent = '❌';
-    removeBlockBtn.classList.add('no-pdf');
-    removeBlockBtn.onclick = () => {
-      const cb = document.querySelector(`#returnMaterialCheckboxes input[data-type="${type}"]`);
-      if (cb) { cb.checked = false; }
-      wrap.remove();
-    };
-    controls.appendChild(removeBlockBtn);
-
-    header.appendChild(controls);
-    wrap.appendChild(header);
-
-    const table = document.createElement('table');
-    table.style.width='100%';
-    table.style.borderCollapse='collapse';
-    table.style.marginTop='10px';
-    table.dataset.type = type;
-
-    const thead = document.createElement('thead');
-    const trh = document.createElement('tr');
-    cfg.columns.forEach(c => {
-      const th = document.createElement('th');
-      th.textContent = c.label;
-      th.style.borderBottom='2px solid #b8d5e8';
-      th.style.padding='6px';
-      trh.appendChild(th);
-    });
-    const thd = document.createElement('th'); thd.style.width='60px'; trh.appendChild(thd);
-    thead.appendChild(trh);
-    table.appendChild(thead);
-
-    const tbody = document.createElement('tbody');
-    table.appendChild(tbody);
-    wrap.appendChild(table);
-
-    addReturnRow(type);
-
-    return wrap;
-  }
-
-  // Ajouter une ligne dans un tableau de restitution
-  function addReturnRow(type) {
-    const cfg = returnConfig[type];
-    const block = document.querySelector(`#returnTableBlock-${type}`);
-    if (!block) return;
-    const table = block.querySelector('table');
-    const tbody = table.querySelector('tbody');
-
-    const tr = document.createElement('tr');
-    tr.style.borderBottom='1px solid #e0eef7';
-
-    cfg.columns.forEach(col => {
-      const td = document.createElement('td');
-      td.style.padding='6px';
-      const input = document.createElement('input');
-      input.type='text';
-      input.name=`restitution[${type}][][${col.key}]`;
-      input.value=cfg.defaultRow[col.key] || '';
-      input.style.width='100%';
-      input.style.boxSizing='border-box';
-      input.style.padding='6px';
-      input.style.border='1px solid #9fb7cc';
-      input.style.borderRadius='6px';
-      td.appendChild(input);
-      tr.appendChild(td);
-    });
-
-    const tdDel = document.createElement('td');
-    tdDel.style.padding='6px';
-    const delBtn = document.createElement('button');
-    delBtn.type='button';
-    delBtn.textContent='Supprimer';
-    delBtn.classList.add('no-pdf');
-    delBtn.onclick = () => tr.remove();
-    tdDel.appendChild(delBtn);
-    tr.appendChild(tdDel);
-
-    tbody.appendChild(tr);
-  }
-
-  // Afficher le dateDepartBlock si motif = Depart
-  function toggleDepartDateReturn() {
+  // Bloc Restitution : j'affiche les champs conditionnels selon le motif choisi.
+  // (Les cases à cocher n'ouvrent plus de tableaux : les détails d'un retour
+  //  d'appareil se documentent dans le bloc Suivi, action « Retour du matériel ».)
+  function toggleMotifRestitution() {
     const motif = document.getElementById('motifRestitution').value;
     const dateDepartBlock = document.getElementById('dateDepartBlock');
-    if (motif === 'Départ') {
-      if (dateDepartBlock) dateDepartBlock.style.display = 'block';
-    } else {
-      if (dateDepartBlock) dateDepartBlock.style.display = 'none';
-      const dd = document.getElementById('dateDepart');
-      if (dd) dd.value = '';
-    }
+    const autresBlock = document.getElementById('AutresBlock');
+    if (dateDepartBlock) dateDepartBlock.style.display = (motif === 'Départ') ? 'block' : 'none';
+    if (motif !== 'Départ') { const dd = document.getElementById('dateDepart'); if (dd) dd.value = ''; }
+    if (autresBlock) autresBlock.style.display = (motif === 'Autres') ? 'block' : 'none';
+    if (motif !== 'Autres') { const a = document.getElementById('Autres'); if (a) a.value = ''; }
   }
   </script>
 
